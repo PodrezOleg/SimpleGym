@@ -23,15 +23,21 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "💪 Gym Tracker"
-        view.backgroundColor = UIColor(red: 1.0, green: 0.9, blue: 0.9, alpha: 1.0) // warm pink
+        view.backgroundColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.2, green: 0.0, blue: 0.3, alpha: 1.0) // dark purple
+                : UIColor(red: 1.0, green: 0.9, blue: 0.9, alpha: 1.0) // warm pink
+        }
 
         loadWorkouts()
         loadSetsCountFromStorage()
 
         let alert = UIAlertController(title: "🎉 Ты крутыха!", message: "Как будешь жать 25кг, приложение можно удалять)))", preferredStyle: .alert)
-        self.present(alert, animated: true) {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                alert.dismiss(animated: true, completion: nil)
+        DispatchQueue.main.async {
+            self.present(alert, animated: true) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    alert.dismiss(animated: true, completion: nil)
+                }
             }
         }
         setupTableView()
@@ -44,11 +50,23 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     }
 
     func setupTableView() {
-        tableView.frame = CGRect(x: 0, y: 450, width: view.frame.width, height: view.frame.height - 450)
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(tableView) // ✅ сначала добавить
+
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 450),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.backgroundColor = UIColor(red: 1.0, green: 0.95, blue: 0.95, alpha: 1.0) // lighter pink
-        view.addSubview(tableView)
+        tableView.backgroundColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.25, green: 0.0, blue: 0.35, alpha: 1.0)
+                : UIColor(red: 1.0, green: 0.95, blue: 0.95, alpha: 1.0)
+        }
     }
 
     func setupAddButton() {
@@ -58,12 +76,22 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     }
 
     func setupStatsLabel() {
-        statsLabel.frame = CGRect(x: 20, y: 80, width: view.frame.width - 40, height: 50)
+        statsLabel.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(statsLabel)
+        NSLayoutConstraint.activate([
+            statsLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            statsLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            statsLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            statsLabel.heightAnchor.constraint(equalToConstant: 50)
+        ])
         statsLabel.textAlignment = .center
         statsLabel.font = UIFont.boldSystemFont(ofSize: 18)
         statsLabel.textColor = .systemPurple
-        statsLabel.backgroundColor = UIColor.systemGray6
-        view.addSubview(statsLabel)
+        statsLabel.backgroundColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.3, green: 0.0, blue: 0.4, alpha: 1.0)
+                : UIColor.systemGray6
+        }
     }
 
     @objc func addWorkout() {
@@ -92,7 +120,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
         alert.addAction(saveAction)
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        present(alert, animated: true)
+        DispatchQueue.main.async {
+            self.present(alert, animated: true)
+        }
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -142,7 +172,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
     func setupRingChart() {
         let ring = UIProgressView(progressViewStyle: .bar)
-        ring.frame = CGRect(x: 20, y: statsLabel.frame.maxY + 20, width: view.frame.width - 40, height: 20)
+        ring.translatesAutoresizingMaskIntoConstraints = false
         ring.progressTintColor = .systemPurple
         ring.trackTintColor = .systemGray4
         ring.progress = progressThisMonth()
@@ -150,19 +180,35 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         ring.clipsToBounds = true
         view.addSubview(ring)
 
-        let label = UILabel(frame: CGRect(x: 20, y: ring.frame.maxY, width: view.frame.width - 40, height: 20))
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
         label.textAlignment = .center
         label.font = UIFont.systemFont(ofSize: 14)
-        label.textColor = .darkGray
+        label.textColor = UIColor { trait in
+            trait.userInterfaceStyle == .dark ? .lightGray : .darkGray
+        }
         label.text = "Прогресс за месяц"
         view.addSubview(label)
+
+        NSLayoutConstraint.activate([
+            ring.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 20),
+            ring.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            ring.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            ring.heightAnchor.constraint(equalToConstant: 20),
+
+            label.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 8),
+            label.leadingAnchor.constraint(equalTo: ring.leadingAnchor),
+            label.trailingAnchor.constraint(equalTo: ring.trailingAnchor),
+            label.heightAnchor.constraint(equalToConstant: 20)
+        ])
     }
 
     func setupWeeklyBarChart() {
         let calendar = Calendar.current
         let startOfWeek = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date()))!
 
-        let barStack = UIStackView(frame: CGRect(x: 20, y: 0, width: view.frame.width - 40, height: 50))
+        let barStack = UIStackView()
+        barStack.translatesAutoresizingMaskIntoConstraints = false
         barStack.axis = .horizontal
         barStack.distribution = .fillEqually
         barStack.spacing = 4
@@ -193,24 +239,37 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             barStack.addArrangedSubview(container)
         }
 
-        if let ring = view.subviews.first(where: { $0 is UIProgressView }) {
-            barStack.frame.origin.y = ring.frame.maxY + 30
-        } else {
-            barStack.frame.origin.y = statsLabel.frame.maxY + 70
-        }
-
         view.addSubview(barStack)
+
+        if let ring = view.subviews.first(where: { $0 is UIProgressView }) {
+            NSLayoutConstraint.activate([
+                barStack.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 30),
+                barStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+                barStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+                barStack.heightAnchor.constraint(equalToConstant: 50)
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                barStack.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 70),
+                barStack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+                barStack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+                barStack.heightAnchor.constraint(equalToConstant: 50)
+            ])
+        }
     }
 
     func setupBadgesSection() {
-        let label = UILabel(frame: CGRect(x: 20, y: 0, width: view.frame.width - 40, height: 30))
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
         label.text = "🏅 Достижения"
         label.font = UIFont.boldSystemFont(ofSize: 16)
         view.addSubview(label)
 
-        let badges = UIStackView(frame: CGRect(x: 20, y: 0, width: view.frame.width - 40, height: 30))
+        let badges = UIStackView()
+        badges.translatesAutoresizingMaskIntoConstraints = false
         badges.axis = .horizontal
         badges.spacing = 10
+        view.addSubview(badges)
 
         let streak = currentStreak()
         let weekSets = setsThisWeek()
@@ -227,16 +286,42 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
         let candidateStacks = view.subviews.compactMap { $0 as? UIStackView }
         if let barStack = candidateStacks.first(where: { $0.axis == .horizontal && $0.spacing == 4 }) {
-            label.frame.origin.y = barStack.frame.maxY + 30
+            NSLayoutConstraint.activate([
+                label.topAnchor.constraint(equalTo: barStack.bottomAnchor, constant: 30),
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+                label.heightAnchor.constraint(equalToConstant: 30),
+
+                badges.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
+                badges.leadingAnchor.constraint(equalTo: label.leadingAnchor),
+                badges.trailingAnchor.constraint(lessThanOrEqualTo: label.trailingAnchor),
+                badges.heightAnchor.constraint(equalToConstant: 30)
+            ])
         } else if let ring = view.subviews.first(where: { $0 is UIProgressView }) {
-            label.frame.origin.y = ring.frame.maxY + 60
+            NSLayoutConstraint.activate([
+                label.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 60),
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+                label.heightAnchor.constraint(equalToConstant: 30),
+
+                badges.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
+                badges.leadingAnchor.constraint(equalTo: label.leadingAnchor),
+                badges.trailingAnchor.constraint(lessThanOrEqualTo: label.trailingAnchor),
+                badges.heightAnchor.constraint(equalToConstant: 30)
+            ])
         } else {
-            label.frame.origin.y = statsLabel.frame.maxY + 100
+            NSLayoutConstraint.activate([
+                label.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 100),
+                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+                label.heightAnchor.constraint(equalToConstant: 30),
+
+                badges.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
+                badges.leadingAnchor.constraint(equalTo: label.leadingAnchor),
+                badges.trailingAnchor.constraint(lessThanOrEqualTo: label.trailingAnchor),
+                badges.heightAnchor.constraint(equalToConstant: 30)
+            ])
         }
-
-        badges.frame.origin.y = label.frame.maxY + 8
-
-        view.addSubview(badges)
     }
 
     func makeBadge(title: String) -> UIView {

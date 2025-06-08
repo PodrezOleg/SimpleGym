@@ -9,6 +9,13 @@ import UIKit
 import FSCalendar
 
 class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, FSCalendarDelegate, FSCalendarDataSource {
+    lazy var adaptivePurple: UIColor = {
+        return UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.22, green: 0.18, blue: 0.40, alpha: 1.0)
+                : UIColor.purple
+        }
+    }()
     let popularExerciseNames: [String] = [
         "Жим лежа", "Приседания со штангой", "Становая тяга", "Армейский жим",
         "Подтягивания", "Отжимания", "Сгибание рук со штангой", "Французский жим",
@@ -42,31 +49,59 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         }
         saveExercises(for: currentDate)
         title = "Workout"
-        view.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // теплый розовый
+        view.backgroundColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.18, green: 0.13, blue: 0.33, alpha: 1.0) // тёмно-фиолетовый
+                : UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // тёплый розовый
+        }
         
         let dateLabel = UILabel()
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .full
         dateFormatter.locale = Locale(identifier: "ru_RU")
         dateLabel.text = "Сегодня: \(dateFormatter.string(from: Date()))"
-        dateLabel.textColor = .purple
+        dateLabel.textColor = adaptivePurple
         dateLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         dateLabel.textAlignment = .center
-        dateLabel.backgroundColor = UIColor(red: 1.0, green: 0.85, blue: 0.88, alpha: 1.0) // чуть темнее розового
-        dateLabel.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 50, width: view.frame.width, height: 30)
+        dateLabel.backgroundColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.22, green: 0.18, blue: 0.40, alpha: 1.0)
+                : UIColor(red: 1.0, green: 0.85, blue: 0.88, alpha: 1.0)
+        }
+        dateLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(dateLabel)
+        NSLayoutConstraint.activate([
+            dateLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            dateLabel.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            dateLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            dateLabel.heightAnchor.constraint(equalToConstant: 30)
+        ])
         
-        tableView.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 88, width: view.frame.width, height: view.frame.height - (view.safeAreaInsets.top + 88))
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(tableView)
+        NSLayoutConstraint.activate([
+            tableView.topAnchor.constraint(equalTo: dateLabel.bottomAnchor, constant: 8),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor)
+        ])
         tableView.dataSource = self
         tableView.delegate = self
         //        tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
-        view.addSubview(tableView)
         
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addExercise))
-        navigationItem.rightBarButtonItem?.tintColor = UIColor.purple
+        navigationItem.rightBarButtonItem?.tintColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0) // бежевый для тёмной
+                : UIColor.purple // оригинальный фиолетовый для светлой
+        }
         navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Популярные", style: .plain, target: self, action: #selector(showPopularExercises))
-        navigationItem.leftBarButtonItem?.tintColor = UIColor.purple
+        navigationItem.leftBarButtonItem?.tintColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0) // бежевый для тёмной
+                : UIColor.purple // оригинальный фиолетовый для светлой
+        }
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -75,6 +110,11 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
+        cell.backgroundColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.22, green: 0.18, blue: 0.40, alpha: 1.0) // фиолетовый для тёмной темы
+                : UIColor(red: 1.0, green: 0.96, blue: 0.96, alpha: 1.0) // светло-розовый
+        }
         cell.textLabel?.numberOfLines = 0
         cell.detailTextLabel?.numberOfLines = 0
         let entry = exercises[indexPath.row]
@@ -84,9 +124,16 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         }.joined(separator: "\n")
         cell.detailTextLabel?.text = totalSets
         // Custom cell appearance
-        cell.backgroundColor = UIColor(red: 1.0, green: 0.96, blue: 0.96, alpha: 1.0) // светло-розовый
-        cell.textLabel?.textColor = UIColor.purple
-        cell.detailTextLabel?.textColor = UIColor.purple
+        cell.textLabel?.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? .white
+                : UIColor.purple
+        }
+        cell.detailTextLabel?.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? .white
+                : UIColor.purple
+        }
         cell.textLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         cell.detailTextLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         return cell

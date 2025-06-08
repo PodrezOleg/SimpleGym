@@ -18,10 +18,15 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "История"
-        view.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0)
+        view.backgroundColor = UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark
+                ? UIColor(red: 0.3, green: 0.2, blue: 0.4, alpha: 1.0) // фиолетовый для тёмной темы
+                : UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // светло-розовый для светлой
+        }
 
         calendar.dataSource = self
         calendar.delegate = self
+
         // Calendar appearance customization
         calendar.appearance.eventDefaultColor = UIColor.purple
         calendar.appearance.todayColor = UIColor(red: 1.0, green: 0.85, blue: 0.95, alpha: 1.0)
@@ -38,23 +43,28 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
         calendar.appearance.weekdayFont = UIFont.systemFont(ofSize: 18, weight: .medium)
         calendar.appearance.headerTitleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
         calendar.firstWeekday = 2
-        view.addSubview(calendar)
+
+        calendar.translatesAutoresizingMaskIntoConstraints = false
+        tableView.translatesAutoresizingMaskIntoConstraints = false
 
         tableView.dataSource = self
+
+        view.addSubview(calendar)
         view.addSubview(tableView)
 
-        loadExercises(for: selectedDate)
-    }
+        NSLayoutConstraint.activate([
+            calendar.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            calendar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            calendar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            calendar.heightAnchor.constraint(equalToConstant: 300),
 
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        
-        let topInset = view.safeAreaInsets.top
-        let bottomInset = view.safeAreaInsets.bottom
-        
-        calendar.frame = CGRect(x: 0, y: topInset + 8, width: view.frame.width, height: 300)
-        let calendarBottom = calendar.frame.maxY
-        tableView.frame = CGRect(x: 0, y: calendarBottom + 8, width: view.frame.width, height: view.frame.height - calendarBottom - bottomInset - 8)
+            tableView.topAnchor.constraint(equalTo: calendar.bottomAnchor, constant: 8),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
+        ])
+
+        loadExercises(for: selectedDate)
     }
 
     func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
@@ -84,9 +94,17 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
         cell.textLabel?.text = exercise.name
         let totalSets = exercise.sets.map { "\($0.weight)кг x \($0.reps)" }.joined(separator: ", ")
         cell.detailTextLabel?.text = totalSets
-        cell.backgroundColor = UIColor(red: 1.0, green: 0.96, blue: 0.96, alpha: 1.0)
-        cell.textLabel?.textColor = UIColor.purple
-        cell.detailTextLabel?.textColor = UIColor.purple
+        cell.backgroundColor = UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark
+                ? UIColor(red: 0.35, green: 0.25, blue: 0.5, alpha: 1.0)
+                : UIColor(red: 1.0, green: 0.96, blue: 0.96, alpha: 1.0)
+        }
+        cell.textLabel?.textColor = UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark ? UIColor.white : UIColor.purple
+        }
+        cell.detailTextLabel?.textColor = UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark ? UIColor.white : UIColor.purple
+        }
         return cell
     }
 

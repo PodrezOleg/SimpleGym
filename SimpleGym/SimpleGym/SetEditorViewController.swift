@@ -22,7 +22,11 @@ final class SetEditorViewController: UIViewController {
         super.viewDidLoad()
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
         view.addGestureRecognizer(tapGesture)
-        view.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.96, alpha: 1.0) // теплый розовый
+        view.backgroundColor = UIColor { traitCollection in
+            traitCollection.userInterfaceStyle == .dark
+                ? UIColor(red: 0.18, green: 0.13, blue: 0.33, alpha: 1.0) // тёмно-фиолетовый, как в WorkoutDetailViewController
+                : UIColor(red: 1.0, green: 0.94, blue: 0.96, alpha: 1.0) // розовый для светлой
+        }
         title = exerciseName
 
         setupLayout()
@@ -68,23 +72,39 @@ final class SetEditorViewController: UIViewController {
             let title = UILabel()
             title.text = "Подход \(index + 1)"
             title.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-            title.textColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+            title.textColor = UIColor { trait in
+                return trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0) // Бежевый для тёмной темы
+                    : UIColor.purple // Фиолетовый для светлой темы
+            }
             container.addArrangedSubview(title)
 
             let weightRow = UIStackView()
             weightRow.axis = .horizontal
             weightRow.spacing = 8
+            weightRow.distribution = .fill
             let weightLabel = UILabel()
             weightLabel.text = "Вес:"
             weightLabel.widthAnchor.constraint(equalToConstant: 60).isActive = true
-            weightLabel.textColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+            weightLabel.textColor = UIColor { trait in
+                return trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0)
+                    : UIColor.purple
+            }
+            weightLabel.setContentHuggingPriority(.required, for: .horizontal)
             let weightField = UITextField()
             weightField.placeholder = "Вес (кг)"
             weightField.text = set.weight
             weightField.borderStyle = .roundedRect
             weightField.keyboardType = .decimalPad
             weightField.tag = index * 2
-            weightField.textColor = UIColor(red: 0.2, green: 0.0, blue: 0.2, alpha: 1.0) // глубокий фиолетовый
+            weightField.textColor = UIColor { trait in
+                return trait.userInterfaceStyle == .dark
+                    ? .white
+                    : UIColor.purple
+            }
+            weightField.translatesAutoresizingMaskIntoConstraints = false
+            weightField.setContentHuggingPriority(.defaultLow, for: .horizontal)
             weightRow.addArrangedSubview(weightLabel)
             weightRow.addArrangedSubview(weightField)
             container.addArrangedSubview(weightRow)
@@ -92,17 +112,29 @@ final class SetEditorViewController: UIViewController {
             let repsRow = UIStackView()
             repsRow.axis = .horizontal
             repsRow.spacing = 8
+            repsRow.distribution = .fill
             let repsLabel = UILabel()
             repsLabel.text = "Повт:"
             repsLabel.widthAnchor.constraint(equalToConstant: 60).isActive = true
-            repsLabel.textColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+            repsLabel.textColor = UIColor { trait in
+                return trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0)
+                    : UIColor.purple
+            }
+            repsLabel.setContentHuggingPriority(.required, for: .horizontal)
             let repsField = UITextField()
             repsField.placeholder = "Повторения"
             repsField.text = set.reps
             repsField.borderStyle = .roundedRect
             repsField.keyboardType = .numberPad
             repsField.tag = index * 2 + 1
-            repsField.textColor = UIColor(red: 0.2, green: 0.0, blue: 0.2, alpha: 1.0) // глубокий фиолетовый
+            repsField.textColor = UIColor { trait in
+                return trait.userInterfaceStyle == .dark
+                    ? .white
+                    : UIColor.purple
+            }
+            repsField.translatesAutoresizingMaskIntoConstraints = false
+            repsField.setContentHuggingPriority(.defaultLow, for: .horizontal)
             repsRow.addArrangedSubview(repsLabel)
             repsRow.addArrangedSubview(repsField)
             container.addArrangedSubview(repsRow)
@@ -122,7 +154,11 @@ final class SetEditorViewController: UIViewController {
         let button = UIButton(type: .system)
         button.setTitle("Сохранить", for: .normal)
         button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
-        button.backgroundColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+        button.backgroundColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.6, green: 0.8, blue: 0.6, alpha: 1.0) // бледно-зелёный для тёмной темы
+                : UIColor(red: 0.8, green: 1.0, blue: 0.8, alpha: 1.0) // бледно-зелёный для светлой темы
+        }
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 8
         button.heightAnchor.constraint(equalToConstant: 44).isActive = true
@@ -132,7 +168,11 @@ final class SetEditorViewController: UIViewController {
         let addSetButton = UIButton(type: .system)
         addSetButton.setTitle("Добавить подход", for: .normal)
         addSetButton.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        addSetButton.setTitleColor(UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0), for: .normal)
+        addSetButton.setTitleColor(UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0)
+                : UIColor.purple
+        }, for: .normal)
         addSetButton.addTarget(self, action: #selector(addSetTapped), for: .touchUpInside)
         stackView.insertArrangedSubview(addSetButton, at: stackView.arrangedSubviews.count - 1)
     }
@@ -167,22 +207,38 @@ final class SetEditorViewController: UIViewController {
         let title = UILabel()
         title.text = "Подход \(stackView.arrangedSubviews.count - 1 + 1)"
         title.font = UIFont.systemFont(ofSize: 18, weight: .medium)
-        title.textColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+        title.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0)
+                : UIColor.purple
+        }
         container.addArrangedSubview(title)
 
         let weightRow = UIStackView()
         weightRow.axis = .horizontal
         weightRow.spacing = 8
+        weightRow.distribution = .fill
         let weightLabel = UILabel()
         weightLabel.text = "Вес:"
         weightLabel.widthAnchor.constraint(equalToConstant: 60).isActive = true
-        weightLabel.textColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+        weightLabel.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0)
+                : UIColor.purple
+        }
+        weightLabel.setContentHuggingPriority(.required, for: .horizontal)
         let weightField = UITextField()
         weightField.placeholder = "Вес (кг)"
         weightField.borderStyle = .roundedRect
         weightField.keyboardType = .decimalPad
         weightField.tag = nextTagIndex
-        weightField.textColor = UIColor(red: 0.2, green: 0.0, blue: 0.2, alpha: 1.0) // глубокий фиолетовый
+        weightField.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? .white
+                : UIColor.purple
+        }
+        weightField.translatesAutoresizingMaskIntoConstraints = false
+        weightField.setContentHuggingPriority(.defaultLow, for: .horizontal)
         nextTagIndex += 1
         weightRow.addArrangedSubview(weightLabel)
         weightRow.addArrangedSubview(weightField)
@@ -191,16 +247,28 @@ final class SetEditorViewController: UIViewController {
         let repsRow = UIStackView()
         repsRow.axis = .horizontal
         repsRow.spacing = 8
+        repsRow.distribution = .fill
         let repsLabel = UILabel()
         repsLabel.text = "Повт:"
         repsLabel.widthAnchor.constraint(equalToConstant: 60).isActive = true
-        repsLabel.textColor = UIColor(red: 0.5, green: 0.0, blue: 0.5, alpha: 1.0) // фиолетовый
+        repsLabel.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0)
+                : UIColor.purple
+        }
+        repsLabel.setContentHuggingPriority(.required, for: .horizontal)
         let repsField = UITextField()
         repsField.placeholder = "Повторения"
         repsField.borderStyle = .roundedRect
         repsField.keyboardType = .numberPad
         repsField.tag = nextTagIndex
-        repsField.textColor = UIColor(red: 0.2, green: 0.0, blue: 0.2, alpha: 1.0) // глубокий фиолетовый
+        repsField.textColor = UIColor { trait in
+            return trait.userInterfaceStyle == .dark
+                ? .white
+                : UIColor.purple
+        }
+        repsField.translatesAutoresizingMaskIntoConstraints = false
+        repsField.setContentHuggingPriority(.defaultLow, for: .horizontal)
         nextTagIndex += 1
         repsRow.addArrangedSubview(repsLabel)
         repsRow.addArrangedSubview(repsField)
