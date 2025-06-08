@@ -9,11 +9,22 @@ import UIKit
 import FSCalendar
 
 class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, FSCalendarDelegate, FSCalendarDataSource {
+    let popularExerciseNames: [String] = [
+        "Жим лежа", "Приседания со штангой", "Становая тяга", "Армейский жим",
+        "Подтягивания", "Отжимания", "Сгибание рук со штангой", "Французский жим",
+        "Тяга штанги в наклоне", "Тяга верхнего блока", "Тяга нижнего блока",
+        "Разводка гантелей лёжа", "Пуловер", "Жим гантелей на наклонной",
+        "Разгибание ног", "Сгибание ног лёжа", "Махи в стороны", "Махи назад",
+        "Планка", "Скручивания", "Обратные скручивания", "Подъем ног в висе",
+        "Жим платформы", "Подъем на носки сидя", "Гиперэкстензия",
+        "Тяга гантели одной рукой", "Тяга Т-грифа", "Жим штанги узким хватом",
+        "Шраги", "Отведение ноги назад в тренажёре"
+    ]
     let tableView = UITableView()
     var exercises: [ExerciseEntry] = []
     var currentDate: Date = Date()
     let weekCalendar = FSCalendar()
-
+    
     var savedExerciseNames: [String] {
         get {
             UserDefaults.standard.stringArray(forKey: "savedExerciseNames") ?? []
@@ -22,7 +33,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
             UserDefaults.standard.set(newValue, forKey: "savedExerciseNames")
         }
     }
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         loadExercises(for: currentDate)
@@ -32,56 +43,36 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         saveExercises(for: currentDate)
         title = "Workout"
         view.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // теплый розовый
-
-        tableView.frame = view.bounds
+        
+        let dateLabel = UILabel()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .full
+        dateFormatter.locale = Locale(identifier: "ru_RU")
+        dateLabel.text = "Сегодня: \(dateFormatter.string(from: Date()))"
+        dateLabel.textColor = .purple
+        dateLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        dateLabel.textAlignment = .center
+        dateLabel.backgroundColor = UIColor(red: 1.0, green: 0.85, blue: 0.88, alpha: 1.0) // чуть темнее розового
+        dateLabel.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 50, width: view.frame.width, height: 30)
+        view.addSubview(dateLabel)
+        
+        tableView.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 88, width: view.frame.width, height: view.frame.height - (view.safeAreaInsets.top + 88))
         tableView.dataSource = self
         tableView.delegate = self
-//        tableView.rowHeight = UITableView.automaticDimension
+        //        tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 100
         view.addSubview(tableView)
-
-        weekCalendar.scope = .week
-        weekCalendar.firstWeekday = 2 // понедельник
-        weekCalendar.rowHeight = 100
-        weekCalendar.weekdayHeight = 36
-
-        let appearance = weekCalendar.appearance
-        appearance.titleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
-        appearance.titleOffset = CGPoint(x: 0, y: 6)
-        appearance.weekdayFont = UIFont.systemFont(ofSize: 18, weight: .medium)
-        appearance.headerTitleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
-        appearance.titleDefaultColor = .darkText
-        appearance.titleTodayColor = .black
-        appearance.weekdayTextColor = .purple
-        appearance.selectionColor = .purple
-        appearance.todayColor = UIColor(red: 1.0, green: 0.85, blue: 0.95, alpha: 1.0)
-
-        // weekCalendar.frame = CGRect(x: 0, y: 80, width: view.frame.width, height: 100)
-        weekCalendar.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 8, width: view.frame.width, height: 90)
-        weekCalendar.delegate = self
-        weekCalendar.dataSource = self
-        view.addSubview(weekCalendar)
         
-        // Сдвигаем таблицу вниз под календарь
-        // tableView.frame = CGRect(x: 0, y: 160, width: view.frame.width, height: view.frame.height - 160)
-        tableView.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 70, width: view.frame.width, height: view.frame.height - (view.safeAreaInsets.top + 70))
-
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addExercise))
         navigationItem.rightBarButtonItem?.tintColor = UIColor.purple
+        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Популярные", style: .plain, target: self, action: #selector(showPopularExercises))
+        navigationItem.leftBarButtonItem?.tintColor = UIColor.purple
     }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        let calendarHeight: CGFloat = 90
-        let topInset = view.safeAreaInsets.top
-        weekCalendar.frame = CGRect(x: 0, y: topInset + 8, width: view.frame.width, height: calendarHeight)
-        tableView.frame = CGRect(x: 0, y: topInset + calendarHeight + 8, width: view.frame.width, height: view.frame.height - (topInset + calendarHeight + 8))
-    }
-
+    
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return exercises.count
     }
-
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
         cell.textLabel?.numberOfLines = 0
@@ -100,7 +91,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         cell.detailTextLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         return cell
     }
-
+    
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let entry = exercises[indexPath.row]
         
@@ -120,13 +111,13 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         navigationController?.pushViewController(editorVC, animated: true)
         tableView.deselectRow(at: indexPath, animated: true)
     }
-
+    
     func formattedDateKey(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return "exercises-\(formatter.string(from: date))"
     }
-
+    
     func saveExercises(for date: Date) {
         let key = formattedDateKey(for: date)
         ExerciseStorage.shared.update(for: key, exercises: exercises)
@@ -136,7 +127,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         let key = formattedDateKey(for: date)
         exercises = ExerciseStorage.shared.load(for: key)
     }
-
+    
     func defaultExercises() -> [ExerciseEntry] {
         return [
             ExerciseEntry(name: "Жим лежа", sets: [ExerciseSet(weight: "10", reps: "20"), ExerciseSet(weight: "15", reps: "15")]),
@@ -150,7 +141,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
             ExerciseEntry(name: "Сгибание ног лёжа", sets: [ExerciseSet(weight: "4", reps: "15"), ExerciseSet(weight: "5", reps: "15"), ExerciseSet(weight: "6", reps: "7")])
         ]
     }
-
+    
     @objc func addExercise() {
         let alert = UIAlertController(title: "Новое упражнение", message: "Выберите или введите", preferredStyle: .alert)
         alert.addTextField { textField in
@@ -159,7 +150,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
             textField.autocapitalizationType = .sentences
             textField.addTarget(self, action: #selector(self.textFieldDidChange(_:)), for: .editingChanged)
         }
-
+        
         alert.addAction(UIAlertAction(title: "Добавить", style: .default, handler: { _ in
             guard let name = alert.textFields?.first?.text, !name.isEmpty else { return }
             if !self.savedExerciseNames.contains(name) {
@@ -175,16 +166,34 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
     
     @objc func textFieldDidChange(_ textField: UITextField) {
         guard let input = textField.text?.lowercased(), !input.isEmpty else { return }
-
+        
         if let match = savedExerciseNames.first(where: { $0.lowercased().hasPrefix(input) }) {
-            textField.text = match
-            if let startPosition = textField.position(from: textField.beginningOfDocument, offset: input.count),
-               let endPosition = textField.position(from: startPosition, offset: match.count - input.count) {
-                textField.selectedTextRange = textField.textRange(from: startPosition, to: endPosition)
+            let currentText = textField.text ?? ""
+            if match != currentText {
+                textField.text = match
+                if let startPosition = textField.position(from: textField.beginningOfDocument, offset: input.count),
+                   let endPosition = textField.position(from: startPosition, offset: match.count - input.count) {
+                    textField.selectedTextRange = textField.textRange(from: startPosition, to: endPosition)
+                }
             }
         }
     }
     
+    @objc func showPopularExercises() {
+        let alert = UIAlertController(title: "Популярные упражнения", message: "Выберите одно", preferredStyle: .actionSheet)
+        for name in self.popularExerciseNames {
+            alert.addAction(UIAlertAction(title: name, style: .default, handler: { _ in
+                if !self.savedExerciseNames.contains(name) {
+                    self.savedExerciseNames.append(name)
+                }
+                self.exercises.append(ExerciseEntry(name: name, sets: [ExerciseSet(weight: "0", reps: "0")]))
+                self.tableView.reloadData()
+                self.saveExercises(for: self.currentDate)
+            }))
+        }
+        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel))
+        self.present(alert, animated: true)
+    }
 }
 
 extension WorkoutDetailViewController: UIPickerViewDataSource, UIPickerViewDelegate {
