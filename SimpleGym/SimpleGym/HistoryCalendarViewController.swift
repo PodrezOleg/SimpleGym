@@ -18,32 +18,43 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "История"
-        view.backgroundColor = .white
+        view.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0)
 
-        calendar.frame = CGRect(x: 0, y: 100, width: view.frame.width, height: 300)
         calendar.dataSource = self
         calendar.delegate = self
         // Calendar appearance customization
-        calendar.appearance.eventDefaultColor = .systemGreen
-        calendar.appearance.todayColor = .clear
-        calendar.appearance.selectionColor = .systemGreen
+        calendar.appearance.eventDefaultColor = UIColor.purple
+        calendar.appearance.todayColor = UIColor(red: 1.0, green: 0.85, blue: 0.95, alpha: 1.0)
+        calendar.appearance.selectionColor = UIColor.purple
         calendar.appearance.titleTodayColor = .black
         calendar.appearance.titleDefaultColor = .black
-        calendar.appearance.titleWeekendColor = .lightGray
+        calendar.appearance.titleWeekendColor = UIColor(red: 0.7, green: 0.6, blue: 0.6, alpha: 1.0)
         calendar.appearance.borderRadius = 0.9
         calendar.appearance.caseOptions = [.weekdayUsesSingleUpperCase, .headerUsesUpperCase]
         calendar.appearance.headerDateFormat = "MMMM yyyy"
-        calendar.appearance.weekdayTextColor = .darkGray
-        calendar.appearance.headerTitleColor = .black
+        calendar.appearance.weekdayTextColor = UIColor.purple
+        calendar.appearance.headerTitleColor = UIColor.purple
         calendar.appearance.titleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
+        calendar.appearance.weekdayFont = UIFont.systemFont(ofSize: 18, weight: .medium)
+        calendar.appearance.headerTitleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
         calendar.firstWeekday = 2
         view.addSubview(calendar)
 
-        tableView.frame = CGRect(x: 0, y: 410, width: view.frame.width, height: view.frame.height - 410)
         tableView.dataSource = self
         view.addSubview(tableView)
 
         loadExercises(for: selectedDate)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        
+        let topInset = view.safeAreaInsets.top
+        let bottomInset = view.safeAreaInsets.bottom
+        
+        calendar.frame = CGRect(x: 0, y: topInset + 8, width: view.frame.width, height: 300)
+        let calendarBottom = calendar.frame.maxY
+        tableView.frame = CGRect(x: 0, y: calendarBottom + 8, width: view.frame.width, height: view.frame.height - calendarBottom - bottomInset - 8)
     }
 
     func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
@@ -73,6 +84,9 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
         cell.textLabel?.text = exercise.name
         let totalSets = exercise.sets.map { "\($0.weight)кг x \($0.reps)" }.joined(separator: ", ")
         cell.detailTextLabel?.text = totalSets
+        cell.backgroundColor = UIColor(red: 1.0, green: 0.96, blue: 0.96, alpha: 1.0)
+        cell.textLabel?.textColor = UIColor.purple
+        cell.detailTextLabel?.textColor = UIColor.purple
         return cell
     }
 

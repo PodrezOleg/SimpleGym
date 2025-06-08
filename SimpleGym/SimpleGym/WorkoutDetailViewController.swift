@@ -12,6 +12,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
     let tableView = UITableView()
     var exercises: [ExerciseEntry] = []
     var currentDate: Date = Date()
+    let weekCalendar = FSCalendar()
 
     var savedExerciseNames: [String] {
         get {
@@ -30,25 +31,51 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         }
         saveExercises(for: currentDate)
         title = "Workout"
-        view.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.05)
+        view.backgroundColor = UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // теплый розовый
 
         tableView.frame = view.bounds
         tableView.dataSource = self
         tableView.delegate = self
+//        tableView.rowHeight = UITableView.automaticDimension
+        tableView.estimatedRowHeight = 100
         view.addSubview(tableView)
 
-        let weekCalendar = FSCalendar()
         weekCalendar.scope = .week
         weekCalendar.firstWeekday = 2 // понедельник
-        weekCalendar.frame = CGRect(x: 0, y: 80, width: view.frame.width, height: 100)
+        weekCalendar.rowHeight = 100
+        weekCalendar.weekdayHeight = 36
+
+        let appearance = weekCalendar.appearance
+        appearance.titleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
+        appearance.titleOffset = CGPoint(x: 0, y: 6)
+        appearance.weekdayFont = UIFont.systemFont(ofSize: 18, weight: .medium)
+        appearance.headerTitleFont = UIFont.systemFont(ofSize: 18, weight: .medium)
+        appearance.titleDefaultColor = .darkText
+        appearance.titleTodayColor = .black
+        appearance.weekdayTextColor = .purple
+        appearance.selectionColor = .purple
+        appearance.todayColor = UIColor(red: 1.0, green: 0.85, blue: 0.95, alpha: 1.0)
+
+        // weekCalendar.frame = CGRect(x: 0, y: 80, width: view.frame.width, height: 100)
+        weekCalendar.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 8, width: view.frame.width, height: 90)
         weekCalendar.delegate = self
         weekCalendar.dataSource = self
         view.addSubview(weekCalendar)
         
         // Сдвигаем таблицу вниз под календарь
-        tableView.frame = CGRect(x: 0, y: 160, width: view.frame.width, height: view.frame.height - 160)
+        // tableView.frame = CGRect(x: 0, y: 160, width: view.frame.width, height: view.frame.height - 160)
+        tableView.frame = CGRect(x: 0, y: view.safeAreaInsets.top + 70, width: view.frame.width, height: view.frame.height - (view.safeAreaInsets.top + 70))
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addExercise))
+        navigationItem.rightBarButtonItem?.tintColor = UIColor.purple
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let calendarHeight: CGFloat = 90
+        let topInset = view.safeAreaInsets.top
+        weekCalendar.frame = CGRect(x: 0, y: topInset + 8, width: view.frame.width, height: calendarHeight)
+        tableView.frame = CGRect(x: 0, y: topInset + calendarHeight + 8, width: view.frame.width, height: view.frame.height - (topInset + calendarHeight + 8))
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -57,12 +84,20 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
+        cell.textLabel?.numberOfLines = 0
+        cell.detailTextLabel?.numberOfLines = 0
         let entry = exercises[indexPath.row]
         cell.textLabel?.text = entry.name
         let totalSets = entry.sets.enumerated().map { index, set in
             return "Подход \(index + 1): \(set.weight)кг x \(set.reps)"
         }.joined(separator: "\n")
         cell.detailTextLabel?.text = totalSets
+        // Custom cell appearance
+        cell.backgroundColor = UIColor(red: 1.0, green: 0.96, blue: 0.96, alpha: 1.0) // светло-розовый
+        cell.textLabel?.textColor = UIColor.purple
+        cell.detailTextLabel?.textColor = UIColor.purple
+        cell.textLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+        cell.detailTextLabel?.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         return cell
     }
 
