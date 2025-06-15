@@ -7,6 +7,7 @@
 
 import UIKit
 import FSCalendar
+import UniformTypeIdentifiers
 
 class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, FSCalendarDelegate, FSCalendarDataSource {
     lazy var adaptivePurple: UIColor = {
@@ -27,6 +28,7 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         "Тяга гантели одной рукой", "Тяга Т-грифа", "Жим штанги узким хватом",
         "Шраги", "Отведение ноги назад в тренажёре"
     ]
+    var dateLabel = UILabel()
     let tableView = UITableView()
     var exercises: [ExerciseEntry] = []
     var currentDate: Date = Date()
@@ -55,7 +57,6 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
                 : UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // тёплый розовый
         }
         
-        let dateLabel = UILabel()
         let dateFormatter = DateFormatter()
         dateFormatter.dateStyle = .full
         dateFormatter.locale = Locale(identifier: "ru_RU")
@@ -76,6 +77,10 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
             dateLabel.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             dateLabel.heightAnchor.constraint(equalToConstant: 30)
         ])
+        
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(showDatePicker))
+        dateLabel.isUserInteractionEnabled = true
+        dateLabel.addGestureRecognizer(tapGesture)
         
         tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
@@ -102,6 +107,55 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
                 ? UIColor(red: 0.95, green: 0.87, blue: 0.74, alpha: 1.0) // бежевый для тёмной
                 : UIColor.purple // оригинальный фиолетовый для светлой
         }
+    }
+    
+    @objc func showDatePicker() {
+        let alert = UIAlertController(title: "Выберите дату", message: nil, preferredStyle: .alert)
+
+        let calendar = FSCalendar()
+        calendar.delegate = self
+        calendar.dataSource = self
+        calendar.scope = .week
+        calendar.select(currentDate)
+        calendar.locale = Locale(identifier: "ru_RU")
+        calendar.appearance.titleDefaultColor = adaptivePurple
+        calendar.appearance.weekdayTextColor = adaptivePurple
+        calendar.appearance.selectionColor = adaptivePurple
+        // Ensure calendar intercepts touches
+        calendar.isUserInteractionEnabled = true
+
+        // Add calendar before setting height constraint
+        alert.view.addSubview(calendar)
+
+        let heightConstraint = NSLayoutConstraint(item: alert.view!,
+                                                  attribute: .height,
+                                                  relatedBy: .equal,
+                                                  toItem: nil,
+                                                  attribute: .notAnAttribute,
+                                                  multiplier: 1,
+                                                  constant: 350)
+        alert.view.addConstraint(heightConstraint)
+
+        calendar.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            calendar.leadingAnchor.constraint(equalTo: alert.view.leadingAnchor, constant: 8),
+            calendar.trailingAnchor.constraint(equalTo: alert.view.trailingAnchor, constant: -8),
+            calendar.topAnchor.constraint(equalTo: alert.view.topAnchor, constant: 50),
+            calendar.heightAnchor.constraint(equalToConstant: 240)
+        ])
+
+        alert.addAction(UIAlertAction(title: "Выбрать", style: .default, handler: { [weak self, weak alert] _ in
+            guard let self = self else { return }
+            if let selectedDate = calendar.selectedDate {
+                self.calendar(calendar, didSelect: selectedDate, at: .current)
+            }
+            alert?.dismiss(animated: true)
+        }))
+        alert.addAction(UIAlertAction(title: "Отмена", style: .cancel, handler: nil))
+
+        present(alert, animated: true)
+        // Ensure alert view is tappable
+        alert.view.isUserInteractionEnabled = true
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -265,5 +319,17 @@ extension WorkoutDetailViewController {
         currentDate = date
         loadExercises(for: currentDate)
         tableView.reloadData()
+
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.locale = Locale(identifier: "ru_RU")
+        dateLabel.text = "Тренировка: \(formatter.string(from: currentDate))"
+
+        let calendarSys = Calendar.current
+        if calendarSys.isDateInToday(currentDate) {
+            dateLabel.textColor = adaptivePurple
+        } else {
+            dateLabel.textColor = .systemRed
+        }
     }
 }

@@ -27,7 +27,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         historyVC.tabBarItem = UITabBarItem(title: "History", image: UIImage(systemName: "calendar"), tag: 2)
 
         let tabBar = UITabBarController()
-        tabBar.viewControllers = [workoutsVC, doneVC, historyVC]
+        tabBar.viewControllers = [doneVC,workoutsVC,historyVC]
 
         window.rootViewController = tabBar
         window.makeKeyAndVisible()

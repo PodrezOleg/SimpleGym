@@ -308,3 +308,16 @@ final class SetEditorViewController: UIViewController {
         view.endEditing(true)
     }
 }
+
+// MARK: - WorkoutFileStorage importWorkouts(from data:) refactor
+// Replace or add the following method to WorkoutFileStorage.swift:
+/*
+func importWorkouts(from data: Data) throws {
+    let decoded = try JSONDecoder().decode([String: [ExerciseEntry]].self, from: data)
+    for (date, entries) in decoded {
+        let key = "exercises-\(date)"
+        ExerciseStorage.shared.update(for: key, exercises: entries)
+    }
+    print("✅ Workouts imported from file successfully.")
+}
+*/
