@@ -40,7 +40,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 }
             }
         }
-        setupTableView()
+        // setupTableView() // removed as requested
         setupAddButton()
         setupStatsLabel()
         updateStats()
@@ -49,25 +49,6 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         setupBadgesSection()
     }
 
-    func setupTableView() {
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(tableView) // ✅ сначала добавить
-
-        NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 450),
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
-        ])
-
-        tableView.dataSource = self
-        tableView.delegate = self
-        tableView.backgroundColor = UIColor { trait in
-            trait.userInterfaceStyle == .dark
-                ? UIColor(red: 0.25, green: 0.0, blue: 0.35, alpha: 1.0)
-                : UIColor(red: 1.0, green: 0.95, blue: 0.95, alpha: 1.0)
-        }
-    }
 
     func setupAddButton() {
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addWorkout))
@@ -157,9 +138,26 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     }
 
     func loadWorkouts() {
-        if let data = UserDefaults.standard.data(forKey: "workouts"),
-           let saved = try? JSONDecoder().decode([Workout].self, from: data) {
-            workouts = saved
+        workouts = []
+        let all = ExerciseStorage.shared.load()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        for (key, entries) in all {
+            // key is like "exercises-YYYY-MM-DD"
+            // extract the date part after the first "-"
+            let parts = key.split(separator: "-")
+            guard parts.count > 1 else { continue }
+            let datePart = parts.dropFirst().joined(separator: "-")
+            guard let date = formatter.date(from: datePart) else { continue }
+
+            for entry in entries {
+                for set in entry.sets {
+                    if let reps = Int(set.reps), let weight = Int(set.weight) {
+                        workouts.append(Workout(name: entry.name, reps: reps, weight: weight, date: date))
+                    }
+                }
+            }
         }
     }
 
@@ -167,7 +165,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         let total = workouts.reduce(0) { $0 + $1.reps }
         let streak = currentStreak()
         let weekly = setsThisWeek()
-        statsLabel.text = "Total reps: \(total) • Week: \(weekly) • 🔥\(streak)-day streak"
+        let avgReps = workouts.isEmpty ? 0 : total / workouts.count
+        let avgWeight = workouts.isEmpty ? 0 : workouts.reduce(0) { $0 + $1.weight } / workouts.count
+        statsLabel.text = "Total reps: \(total) • Avg: \(avgReps)x\(avgWeight) • Week: \(weekly) • 🔥\(streak)-day streak"
     }
 
     func setupRingChart() {
@@ -178,6 +178,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         ring.progress = progressThisMonth()
         ring.layer.cornerRadius = 10
         ring.clipsToBounds = true
+        // Content hugging & compression resistance
+        ring.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        ring.setContentCompressionResistancePriority(.required, for: .vertical)
         view.addSubview(ring)
 
         let label = UILabel()
@@ -188,6 +191,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             trait.userInterfaceStyle == .dark ? .lightGray : .darkGray
         }
         label.text = "Прогресс за месяц"
+        // Content hugging & compression resistance
+        label.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        label.setContentCompressionResistancePriority(.required, for: .vertical)
         view.addSubview(label)
 
         NSLayoutConstraint.activate([
@@ -212,6 +218,9 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         barStack.axis = .horizontal
         barStack.distribution = .fillEqually
         barStack.spacing = 4
+        // Content hugging & compression resistance
+        barStack.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        barStack.setContentCompressionResistancePriority(.required, for: .vertical)
 
         for i in 0..<7 {
             let date = calendar.date(byAdding: .day, value: i, to: startOfWeek)!
@@ -259,69 +268,75 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     }
 
     func setupBadgesSection() {
+        let scrollView = UIScrollView()
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(scrollView)
+
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(container)
+
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "🏅 Достижения"
+        label.text = "📈 Прогресс по упражнениям"
         label.font = UIFont.boldSystemFont(ofSize: 16)
-        view.addSubview(label)
+        container.addSubview(label)
 
-        let badges = UIStackView()
-        badges.translatesAutoresizingMaskIntoConstraints = false
-        badges.axis = .horizontal
-        badges.spacing = 10
-        view.addSubview(badges)
+        let progressStack = UIStackView()
+        progressStack.translatesAutoresizingMaskIntoConstraints = false
+        progressStack.axis = .vertical
+        progressStack.spacing = 6
+        container.addSubview(progressStack)
 
-        let streak = currentStreak()
-        let weekSets = setsThisWeek()
+        let grouped = Dictionary(grouping: workouts, by: { $0.name })
+        var progressData: [(name: String, deltaWeight: Int, deltaReps: Int)] = []
 
-        if streak >= 3 {
-            badges.addArrangedSubview(makeBadge(title: "🔥 3 дня подряд"))
-        }
-        if weekSets >= 100 {
-            badges.addArrangedSubview(makeBadge(title: "💯 повторений на неделе"))
-        }
-        if workouts.count >= 10 {
-            badges.addArrangedSubview(makeBadge(title: "🎉 10 тренировок"))
+        for (name, sessions) in grouped {
+            let sorted = sessions.sorted(by: { $0.date < $1.date })
+            guard let first = sorted.first, let last = sorted.last else { continue }
+            let deltaWeight = last.weight - first.weight
+            let deltaReps = last.reps - first.reps
+            progressData.append((name, deltaWeight, deltaReps))
         }
 
-        let candidateStacks = view.subviews.compactMap { $0 as? UIStackView }
-        if let barStack = candidateStacks.first(where: { $0.axis == .horizontal && $0.spacing == 4 }) {
-            NSLayoutConstraint.activate([
-                label.topAnchor.constraint(equalTo: barStack.bottomAnchor, constant: 30),
-                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-                label.heightAnchor.constraint(equalToConstant: 30),
-
-                badges.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
-                badges.leadingAnchor.constraint(equalTo: label.leadingAnchor),
-                badges.trailingAnchor.constraint(lessThanOrEqualTo: label.trailingAnchor),
-                badges.heightAnchor.constraint(equalToConstant: 30)
-            ])
-        } else if let ring = view.subviews.first(where: { $0 is UIProgressView }) {
-            NSLayoutConstraint.activate([
-                label.topAnchor.constraint(equalTo: ring.bottomAnchor, constant: 60),
-                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-                label.heightAnchor.constraint(equalToConstant: 30),
-
-                badges.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
-                badges.leadingAnchor.constraint(equalTo: label.leadingAnchor),
-                badges.trailingAnchor.constraint(lessThanOrEqualTo: label.trailingAnchor),
-                badges.heightAnchor.constraint(equalToConstant: 30)
-            ])
-        } else {
-            NSLayoutConstraint.activate([
-                label.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 100),
-                label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
-                label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
-                label.heightAnchor.constraint(equalToConstant: 30),
-
-                badges.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
-                badges.leadingAnchor.constraint(equalTo: label.leadingAnchor),
-                badges.trailingAnchor.constraint(lessThanOrEqualTo: label.trailingAnchor),
-                badges.heightAnchor.constraint(equalToConstant: 30)
-            ])
+        progressData.sort {
+            let w1 = $0.deltaWeight + $0.deltaReps
+            let w2 = $1.deltaWeight + $1.deltaReps
+            return w1 > w2
         }
+
+        for item in progressData {
+            let label = UILabel()
+            label.font = UIFont.systemFont(ofSize: 13)
+            label.textColor = item.deltaWeight >= 0 && item.deltaReps >= 0 ? .systemGreen : .systemRed
+            label.text = "\(item.name): \(item.deltaWeight >= 0 ? "+" : "")\(item.deltaWeight)кг, \(item.deltaReps >= 0 ? "+" : "")\(item.deltaReps) повт."
+            progressStack.addArrangedSubview(label)
+        }
+
+        // Constraints for scrollView
+        let bottomView = view.subviews.first(where: { $0 is UIStackView && ($0 as! UIStackView).axis == .horizontal })!
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: bottomView.bottomAnchor, constant: 30),
+            scrollView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            scrollView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+
+            container.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            container.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            container.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            container.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            container.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+
+            label.topAnchor.constraint(equalTo: container.topAnchor),
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            label.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            label.heightAnchor.constraint(equalToConstant: 30),
+
+            progressStack.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
+            progressStack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            progressStack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            progressStack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
     }
 
     func makeBadge(title: String) -> UIView {

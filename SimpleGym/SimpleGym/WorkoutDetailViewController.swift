@@ -42,6 +42,35 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
             UserDefaults.standard.set(newValue, forKey: "savedExerciseNames")
         }
     }
+
+    func updateDateLabel(for date: Date) {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.locale = Locale(identifier: "ru_RU")
+        if Calendar.current.isDateInToday(date) {
+            dateLabel.text = "Сегодня: \(formatter.string(from: date))"
+            dateLabel.textColor = UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? .white    // для тёмной темы — белый
+                    : .black    // для светлой — чёрный
+            }
+            dateLabel.font = UIFont.boldSystemFont(ofSize: 18)
+            dateLabel.backgroundColor = UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.22, green: 0.18, blue: 0.40, alpha: 1.0)
+                    : UIColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1.0)
+            }
+        } else {
+            dateLabel.text = "Тренировка: \(formatter.string(from: date))"
+            dateLabel.textColor = .systemRed
+            dateLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
+            dateLabel.backgroundColor = UIColor { trait in
+                trait.userInterfaceStyle == .dark
+                    ? UIColor(red: 0.22, green: 0.18, blue: 0.40, alpha: 1.0)
+                    : UIColor(red: 1.0, green: 0.85, blue: 0.88, alpha: 1.0)
+            }
+        }
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -53,15 +82,11 @@ class WorkoutDetailViewController: UIViewController, UITableViewDataSource, UITa
         title = "Workout"
         view.backgroundColor = UIColor { trait in
             return trait.userInterfaceStyle == .dark
-                ? UIColor(red: 0.18, green: 0.13, blue: 0.33, alpha: 1.0) // тёмно-фиолетовый
-                : UIColor(red: 1.0, green: 0.94, blue: 0.94, alpha: 1.0) // тёплый розовый
+                ? UIColor(red: 0.09, green: 0.0, blue: 0.16, alpha: 1.0) // глубокий фиолетовый (hex #18002A)
+                : .white
         }
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .full
-        dateFormatter.locale = Locale(identifier: "ru_RU")
-        dateLabel.text = "Сегодня: \(dateFormatter.string(from: Date()))"
-        dateLabel.textColor = adaptivePurple
+        updateDateLabel(for: currentDate)
         dateLabel.font = UIFont.systemFont(ofSize: 18, weight: .medium)
         dateLabel.textAlignment = .center
         dateLabel.backgroundColor = UIColor { trait in
@@ -319,17 +344,6 @@ extension WorkoutDetailViewController {
         currentDate = date
         loadExercises(for: currentDate)
         tableView.reloadData()
-
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.locale = Locale(identifier: "ru_RU")
-        dateLabel.text = "Тренировка: \(formatter.string(from: currentDate))"
-
-        let calendarSys = Calendar.current
-        if calendarSys.isDateInToday(currentDate) {
-            dateLabel.textColor = adaptivePurple
-        } else {
-            dateLabel.textColor = .systemRed
-        }
+        updateDateLabel(for: currentDate)
     }
 }

@@ -81,7 +81,9 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
     func loadExercises(for date: Date) {
         let key = formattedDateKey(for: date)
         exercises = ExerciseStorage.shared.loadExercises(forKey: key)
-        tableView.reloadData()
+        DispatchQueue.main.async {
+            self.tableView.reloadData()
+        }
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -106,6 +108,15 @@ class HistoryCalendarViewController: UIViewController, FSCalendarDataSource, FSC
             traitCollection.userInterfaceStyle == .dark ? UIColor.white : UIColor.purple
         }
         return cell
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let exercise = exercises[indexPath.row]
+        let message = exercise.sets.map { "\($0.weight) кг x \($0.reps)" }.joined(separator: "\n")
+        
+        let alert = UIAlertController(title: exercise.name, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     func formattedDateKey(for date: Date) -> String {
