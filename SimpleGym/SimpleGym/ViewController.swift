@@ -10,16 +10,78 @@
 //
 //  Updated with warm pink theme and purple highlights
 
+
 import UIKit
 import FSCalendar
 
-class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate {
+enum ProgressChartType {
+    case weight
+    case reps
+}
+
+enum TimeRange {
+    case week, month, threeMonths, sixMonths, year
+}
+
+class ViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIPickerViewDataSource, UIPickerViewDelegate {
+
+    enum TimeRange {
+        case week, month, threeMonths, sixMonths, year
+    }
 
     var setsPerDay: [String: Int] = [:]
     var workouts: [Workout] = []
     let tableView = UITableView()
     let statsLabel = UILabel()
+    var selectedExercise: String?
+    var chartType: ProgressChartType = .weight
+    var selectedRange: TimeRange = .month
 
+    class ProgressChartView: UIView {
+        var weightValues: [Int] = []
+        var repValues: [Int] = []
+
+        func setData(weight: [Int], reps: [Int]) {
+            weightValues = weight
+            repValues = reps
+            setNeedsDisplay()
+        }
+
+        override func draw(_ rect: CGRect) {
+            guard max(weightValues.count, repValues.count) > 1 else { return }
+            // scale both series to same max
+            let maxWeight = CGFloat(weightValues.max() ?? 1)
+            let maxReps = CGFloat(repValues.max() ?? 1)
+            let maxValue = max(maxWeight, maxReps)
+            let count = max(weightValues.count, repValues.count)
+            let stepX = rect.width / CGFloat(max(count - 1, 1))
+
+            // draw weight line
+            let weightPath = UIBezierPath()
+            for (i, val) in weightValues.enumerated() {
+                let x = CGFloat(i) * stepX
+                let y = rect.height - CGFloat(val) / maxValue * rect.height
+                if i == 0 { weightPath.move(to: CGPoint(x: x, y: y)) }
+                else      { weightPath.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            UIColor.systemPurple.setStroke()
+            weightPath.lineWidth = 2
+            weightPath.stroke()
+
+            // draw reps line
+            let repsPath = UIBezierPath()
+            for (i, val) in repValues.enumerated() {
+                let x = CGFloat(i) * stepX
+                let y = rect.height - CGFloat(val) / maxValue * rect.height
+                if i == 0 { repsPath.move(to: CGPoint(x: x, y: y)) }
+                else      { repsPath.addLine(to: CGPoint(x: x, y: y)) }
+            }
+            UIColor.systemGreen.setStroke()
+            repsPath.lineWidth = 2
+            repsPath.stroke()
+        }
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "💪 Gym Tracker"
@@ -276,44 +338,74 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         container.translatesAutoresizingMaskIntoConstraints = false
         scrollView.addSubview(container)
 
+        // Time range selector
+        let rangeSegment = UISegmentedControl(items: ["Неделя","Месяц","3М","6М","Год"])
+        rangeSegment.translatesAutoresizingMaskIntoConstraints = false
+        rangeSegment.selectedSegmentIndex = 1
+        rangeSegment.addTarget(self, action: #selector(rangeChanged(_:)), for: .valueChanged)
+        container.addSubview(rangeSegment)
+
+        // Заголовок
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "📈 Прогресс по упражнениям"
+        label.text = "📈 Средний прогресс по упражнениям"
         label.font = UIFont.boldSystemFont(ofSize: 16)
         container.addSubview(label)
 
-        let progressStack = UIStackView()
-        progressStack.translatesAutoresizingMaskIntoConstraints = false
-        progressStack.axis = .vertical
-        progressStack.spacing = 6
-        container.addSubview(progressStack)
+        // Legend: purple = weight, green = reps
+        let legendStack = UIStackView()
+        legendStack.axis = .horizontal
+        legendStack.spacing = 12
+        legendStack.translatesAutoresizingMaskIntoConstraints = false
 
-        let grouped = Dictionary(grouping: workouts, by: { $0.name })
-        var progressData: [(name: String, deltaWeight: Int, deltaReps: Int)] = []
+        let purpleDot = UIView()
+        purpleDot.backgroundColor = .systemPurple
+        purpleDot.layer.cornerRadius = 5
+        purpleDot.translatesAutoresizingMaskIntoConstraints = false
+        purpleDot.widthAnchor.constraint(equalToConstant: 10).isActive = true
+        purpleDot.heightAnchor.constraint(equalToConstant: 10).isActive = true
+        let purpleLabel = UILabel()
+        purpleLabel.text = "Вес"
+        purpleLabel.font = UIFont.systemFont(ofSize: 12)
 
-        for (name, sessions) in grouped {
-            let sorted = sessions.sorted(by: { $0.date < $1.date })
-            guard let first = sorted.first, let last = sorted.last else { continue }
-            let deltaWeight = last.weight - first.weight
-            let deltaReps = last.reps - first.reps
-            progressData.append((name, deltaWeight, deltaReps))
-        }
+        let greenDot = UIView()
+        greenDot.backgroundColor = .systemGreen
+        greenDot.layer.cornerRadius = 5
+        greenDot.translatesAutoresizingMaskIntoConstraints = false
+        greenDot.widthAnchor.constraint(equalToConstant: 10).isActive = true
+        greenDot.heightAnchor.constraint(equalToConstant: 10).isActive = true
+        let greenLabel = UILabel()
+        greenLabel.text = "Повторы"
+        greenLabel.font = UIFont.systemFont(ofSize: 12)
 
-        progressData.sort {
-            let w1 = $0.deltaWeight + $0.deltaReps
-            let w2 = $1.deltaWeight + $1.deltaReps
-            return w1 > w2
-        }
+        legendStack.addArrangedSubview(purpleDot)
+        legendStack.addArrangedSubview(purpleLabel)
+        legendStack.addArrangedSubview(greenDot)
+        legendStack.addArrangedSubview(greenLabel)
+        container.addSubview(legendStack)
 
-        for item in progressData {
-            let label = UILabel()
-            label.font = UIFont.systemFont(ofSize: 13)
-            label.textColor = item.deltaWeight >= 0 && item.deltaReps >= 0 ? .systemGreen : .systemRed
-            label.text = "\(item.name): \(item.deltaWeight >= 0 ? "+" : "")\(item.deltaWeight)кг, \(item.deltaReps >= 0 ? "+" : "")\(item.deltaReps) повт."
-            progressStack.addArrangedSubview(label)
-        }
+        // Picker для выбора упражнения
+        let picker = UIPickerView()
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        picker.dataSource = self
+        picker.delegate = self
+        container.addSubview(picker)
 
-        // Constraints for scrollView
+        // График прогресса
+        let chartView = ProgressChartView()
+        chartView.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(chartView)
+        self.chartView = chartView // сохраним для обновления
+
+        // Данные для picker'а
+        let exerciseNames = Array(Set(workouts.map { $0.name })).sorted()
+        self.exerciseNames = exerciseNames
+
+        // Стартовые значения
+        selectedExercise = exerciseNames.first
+        updateChart(for: selectedExercise ?? "")
+
+        // Constraints
         let bottomView = view.subviews.first(where: { $0 is UIStackView && ($0 as! UIStackView).axis == .horizontal })!
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(equalTo: bottomView.bottomAnchor, constant: 30),
@@ -327,15 +419,31 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             container.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
             container.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
 
-            label.topAnchor.constraint(equalTo: container.topAnchor),
+            rangeSegment.topAnchor.constraint(equalTo: container.topAnchor),
+            rangeSegment.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            rangeSegment.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            rangeSegment.heightAnchor.constraint(equalToConstant: 32),
+
+            label.topAnchor.constraint(equalTo: rangeSegment.bottomAnchor, constant: 8),
             label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             label.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             label.heightAnchor.constraint(equalToConstant: 30),
 
-            progressStack.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 8),
-            progressStack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            progressStack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            progressStack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            label.bottomAnchor.constraint(equalTo: legendStack.topAnchor, constant: -8),
+            legendStack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            legendStack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor),
+            legendStack.heightAnchor.constraint(equalToConstant: 18),
+
+            legendStack.bottomAnchor.constraint(equalTo: picker.topAnchor, constant: -8),
+            picker.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            picker.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            picker.heightAnchor.constraint(equalToConstant: 100),
+
+            chartView.topAnchor.constraint(equalTo: picker.bottomAnchor, constant: 8),
+            chartView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            chartView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            chartView.heightAnchor.constraint(equalToConstant: 200),
+            chartView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
     }
 
@@ -423,5 +531,59 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             ExerciseEntry(name: "Тяга гантелей к поясу", sets: [ExerciseSet(weight: "6", reps: "20"), ExerciseSet(weight: "7", reps: "20")]),
             ExerciseEntry(name: "Сгибание ног лёжа", sets: [ExerciseSet(weight: "4", reps: "15"), ExerciseSet(weight: "5", reps: "15"), ExerciseSet(weight: "6", reps: "7")])
         ]
+    }
+    // Для работы Picker и графика
+    var exerciseNames: [String] = []
+    var chartView: ProgressChartView!
+
+    // UIPickerViewDataSource & Delegate
+    @objc func numberOfComponents(in pickerView: UIPickerView) -> Int { 1 }
+    @objc func pickerView(_ pickerView: UIPickerView, numberOfRowsInComponent component: Int) -> Int {
+        return exerciseNames.count
+    }
+    @objc func pickerView(_ pickerView: UIPickerView, titleForRow row: Int, forComponent component: Int) -> String? {
+        return exerciseNames[row]
+    }
+    @objc func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int) {
+        selectedExercise = exerciseNames[row]
+        updateChart(for: selectedExercise ?? "")
+    }
+
+    // Сегмент выбора типа -- removed
+
+    // Time range segmented control handler
+    @objc func rangeChanged(_ sender: UISegmentedControl) {
+        switch sender.selectedSegmentIndex {
+        case 0: selectedRange = .week
+        case 1: selectedRange = .month
+        case 2: selectedRange = .threeMonths
+        case 3: selectedRange = .sixMonths
+        case 4: selectedRange = .year
+        default: selectedRange = .month
+        }
+        updateChart(for: selectedExercise ?? "")
+    }
+
+    func filteredSessions(_ sessions: [Workout]) -> [Workout] {
+        let now = Date()
+        let calendar = Calendar.current
+        let cutoff: Date
+        switch selectedRange {
+        case .week: cutoff = calendar.date(byAdding: .day, value: -7, to: now)!
+        case .month: cutoff = calendar.date(byAdding: .month, value: -1, to: now)!
+        case .threeMonths: cutoff = calendar.date(byAdding: .month, value: -3, to: now)!
+        case .sixMonths: cutoff = calendar.date(byAdding: .month, value: -6, to: now)!
+        case .year: cutoff = calendar.date(byAdding: .year, value: -1, to: now)!
+        }
+        return sessions.filter { $0.date >= cutoff }
+    }
+
+    // Обновление графика
+    func updateChart(for exercise: String) {
+        let allSessions = workouts.filter { $0.name == exercise }.sorted { $0.date < $1.date }
+        let recent = filteredSessions(allSessions)
+        let weightSeries = recent.map { $0.weight }
+        let repsSeries   = recent.map { $0.reps }
+        chartView.setData(weight: weightSeries, reps: repsSeries)
     }
 }
