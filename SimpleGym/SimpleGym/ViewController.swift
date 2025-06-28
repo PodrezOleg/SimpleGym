@@ -3,12 +3,8 @@
 //  SimpleGym
 //
 //  Created by Oleg Podrez on 7.06.25.
-//
-//
-//  ViewController.swift
-//  SimpleGym
-//
-//  Updated with warm pink theme and purple highlights
+
+
 
 
 import UIKit
@@ -34,21 +30,96 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
     let tableView = UITableView()
     let statsLabel = UILabel()
     var selectedExercise: String?
-    var chartType: ProgressChartType = .weight
+    var chartType: ProgressChartType = .weight // old
     var selectedRange: TimeRange = .month
-
+    var chartMode: ChartMode = .sets // NEW: default to sets
+    var progressLabel: UILabel? // NEW: for progress/regress
+    
+    enum ChartMode {
+        case sets, weight, reps
+    }
+    
     class ProgressChartView: UIView {
+        var values: [Int] = [] // NEW: for sets
         var weightValues: [Int] = []
         var repValues: [Int] = []
+        var topLabels: [String] = [] // NEW: labels above bars
+        var barColors: [UIColor] = [] // Цвета для столбцов
+        var totalValue: Int = 0 // Сумма для подписи
+        var totalLabel: String = ""
 
-        func setData(weight: [Int], reps: [Int]) {
+        func setData(sets: [Int], topLabels: [String]? = nil, barColors: [UIColor]? = nil, totalValue: Int = 0, totalLabel: String = "") {
+            values = sets
+            self.totalValue = totalValue
+            self.totalLabel = totalLabel
+            if let topLabels = topLabels {
+                self.topLabels = topLabels
+            } else {
+                self.topLabels = []
+            }
+            if let barColors = barColors {
+                self.barColors = barColors
+            } else {
+                self.barColors = Array(repeating: UIColor.systemPurple, count: sets.count)
+            }
+            setNeedsDisplay()
+        }
+        func setData(weight: [Int], reps: [Int], topLabels: [String]? = nil) {
             weightValues = weight
             repValues = reps
+            if let topLabels = topLabels {
+                self.topLabels = topLabels
+            } else {
+                self.topLabels = []
+            }
             setNeedsDisplay()
         }
 
         override func draw(_ rect: CGRect) {
-            guard max(weightValues.count, repValues.count) > 1 else { return }
+            let context = UIGraphicsGetCurrentContext()
+            // Очищаем фон графика
+            context?.clear(rect)
+            if !values.isEmpty {
+                let maxVal = CGFloat(values.max() ?? 1)
+                let barMaxHeight = rect.height * 0.75 // 75% высоты
+                let barWidth = rect.width / CGFloat(max(values.count, 1)) * 0.7
+                let labelFont = UIFont.systemFont(ofSize: 12, weight: .bold)
+                for (i, val) in values.enumerated() {
+                    let x = CGFloat(i) * rect.width / CGFloat(values.count)
+                    let barHeight = maxVal > 0 ? CGFloat(val) / maxVal * barMaxHeight : 0
+                    let barRect = CGRect(x: x + barWidth*0.15, y: rect.height - barHeight, width: barWidth, height: barHeight)
+                    let barPath = UIBezierPath(roundedRect: barRect, cornerRadius: 3)
+                    (i < barColors.count ? barColors[i] : UIColor.systemPurple).setFill()
+                    barPath.fill()
+                    // Draw top label if present
+                    if i < topLabels.count, !topLabels[i].isEmpty {
+                        let label = topLabels[i] as NSString
+                        let labelSize = label.size(withAttributes: [.font: labelFont])
+                        let labelX = x + barWidth*0.15 + (barWidth-labelSize.width)/2
+                        let labelY = rect.height - barHeight - labelSize.height - 2
+                        label.draw(at: CGPoint(x: labelX, y: max(0, labelY)), withAttributes: [
+                            .font: labelFont,
+                            .foregroundColor: UIColor.systemRed
+                        ])
+                    }
+                }
+                // Общая сумма веса/повторов сверху графика
+                if !totalLabel.isEmpty && totalLabel != "Всего подходов: 0" {
+                    let totalFont = UIFont.boldSystemFont(ofSize: 16)
+                    let totalStr = totalLabel as NSString
+                    let size = totalStr.size(withAttributes: [.font: totalFont])
+                    let x = (rect.width - size.width) / 2
+                    let y: CGFloat = 4
+                    // Очищаем область перед рисованием новой суммы
+                    UIColor.clear.setFill()
+                    context?.fill(CGRect(x: 0, y: 0, width: rect.width, height: size.height + 8))
+                    totalStr.draw(at: CGPoint(x: x, y: y), withAttributes: [
+                        .font: totalFont,
+                        .foregroundColor: UIColor.systemGray
+                    ])
+                }
+                return
+            }
             // scale both series to same max
             let maxWeight = CGFloat(weightValues.max() ?? 1)
             let maxReps = CGFloat(repValues.max() ?? 1)
@@ -102,7 +173,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
                 }
             }
         }
-        // setupTableView() // removed as requested
+      
         setupAddButton()
         setupStatsLabel()
         updateStats()
@@ -356,6 +427,7 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         let legendStack = UIStackView()
         legendStack.axis = .horizontal
         legendStack.spacing = 12
+        legendStack.alignment = .center
         legendStack.translatesAutoresizingMaskIntoConstraints = false
 
         let purpleDot = UIView()
@@ -396,6 +468,14 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
         chartView.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(chartView)
         self.chartView = chartView // сохраним для обновления
+
+        // NEW: Progress label
+        let progressLabel = UILabel()
+        progressLabel.translatesAutoresizingMaskIntoConstraints = false
+        progressLabel.textAlignment = .center
+        progressLabel.font = UIFont.systemFont(ofSize: 14, weight: .medium)
+        container.addSubview(progressLabel)
+        self.progressLabel = progressLabel
 
         // Данные для picker'а
         let exerciseNames = Array(Set(workouts.map { $0.name })).sorted()
@@ -443,7 +523,11 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
             chartView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             chartView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             chartView.heightAnchor.constraint(equalToConstant: 200),
-            chartView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            progressLabel.topAnchor.constraint(equalTo: chartView.bottomAnchor, constant: 4),
+            progressLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            progressLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            progressLabel.heightAnchor.constraint(equalToConstant: 20),
+            progressLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
     }
 
@@ -580,10 +664,136 @@ class ViewController: UIViewController, UITableViewDataSource, UITableViewDelega
 
     // Обновление графика
     func updateChart(for exercise: String) {
-        let allSessions = workouts.filter { $0.name == exercise }.sorted { $0.date < $1.date }
-        let recent = filteredSessions(allSessions)
-        let weightSeries = recent.map { $0.weight }
-        let repsSeries   = recent.map { $0.reps }
-        chartView.setData(weight: weightSeries, reps: repsSeries)
+        if chartMode == .sets {
+            let (setsPerDay, progressText, topLabels, barColors, totalValue, totalLabel) = setsChartDataWithProgress(for: selectedRange, exercise: selectedExercise)
+            chartView.setData(sets: setsPerDay, topLabels: topLabels, barColors: barColors, totalValue: totalValue, totalLabel: totalLabel)
+            progressLabel?.text = progressText
+        } else {
+            let allSessions = workouts.filter { $0.name == exercise }.sorted { $0.date < $1.date }
+            let recent = filteredSessions(allSessions)
+            let weightSeries = recent.map { $0.weight }
+            let repsSeries   = recent.map { $0.reps }
+            let (topLabels, _) = weightAndSetsDiffLabels(for: recent)
+            chartView.setData(weight: weightSeries, reps: repsSeries, topLabels: topLabels)
+            progressLabel?.text = nil
+        }
+    }
+    // Новый метод: абсолютные значения, цвет, общая сумма
+    func setsChartDataWithProgress(for range: TimeRange, exercise: String?) -> ([Int], String, [String], [UIColor], Int, String) {
+        let calendar = Calendar.current
+        let now = Date()
+        var days: [Date] = []
+        var label = ""
+        switch range {
+        case .week:
+            let start = calendar.date(byAdding: .day, value: -6, to: now)!
+            days = (0...6).map { calendar.date(byAdding: .day, value: $0, to: start)! }
+            label = "неделю"
+        case .month:
+            let start = calendar.date(byAdding: .month, value: -1, to: now)!
+            let daysCount = calendar.dateComponents([.day], from: start, to: now).day ?? 30
+            days = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: start)! }
+            label = "месяц"
+        case .threeMonths:
+            let start = calendar.date(byAdding: .month, value: -3, to: now)!
+            let daysCount = calendar.dateComponents([.day], from: start, to: now).day ?? 90
+            days = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: start)! }
+            label = "3 месяца"
+        case .sixMonths:
+            let start = calendar.date(byAdding: .month, value: -6, to: now)!
+            let daysCount = calendar.dateComponents([.day], from: start, to: now).day ?? 180
+            days = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: start)! }
+            label = "6 месяцев"
+        case .year:
+            let start = calendar.date(byAdding: .year, value: -1, to: now)!
+            let daysCount = calendar.dateComponents([.day], from: start, to: now).day ?? 365
+            days = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: start)! }
+            label = "год"
+        }
+        let filteredWorkouts = workouts.filter { exercise == nil || $0.name == exercise }
+        var setsByDay: [Date: Int] = [:]
+        for day in days {
+            let count = filteredWorkouts.filter { calendar.isDate($0.date, inSameDayAs: day) }.count
+            setsByDay[calendar.startOfDay(for: day)] = count
+        }
+        let setsPerDay = days.map { setsByDay[calendar.startOfDay(for: $0)] ?? 0 }
+        // Цвета: если больше предыдущего — зелёный, меньше — красный, иначе фиолетовый
+        var barColors: [UIColor] = []
+        for i in 0..<setsPerDay.count {
+            if i == 0 {
+                barColors.append(.systemPurple)
+            } else if setsPerDay[i] > setsPerDay[i-1] {
+                barColors.append(.systemGreen)
+            } else if setsPerDay[i] < setsPerDay[i-1] {
+                barColors.append(.systemRed)
+            } else {
+                barColors.append(.systemPurple)
+            }
+        }
+        // Общая сумма подходов
+        let total = setsPerDay.reduce(0, +)
+        let totalLabel = "Всего подходов: \(total)"
+        // Прогресс/регресс по сравнению с предыдущим периодом
+        let prevDays: [Date]
+        switch range {
+        case .week:
+            let prevStart = calendar.date(byAdding: .day, value: -13, to: now)!
+            prevDays = (0...6).map { calendar.date(byAdding: .day, value: $0, to: prevStart)! }
+        case .month:
+            let prevStart = calendar.date(byAdding: .month, value: -2, to: now)!
+            let daysCount = days.count
+            prevDays = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: prevStart)! }
+        case .threeMonths:
+            let prevStart = calendar.date(byAdding: .month, value: -6, to: now)!
+            let daysCount = days.count
+            prevDays = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: prevStart)! }
+        case .sixMonths:
+            let prevStart = calendar.date(byAdding: .month, value: -12, to: now)!
+            let daysCount = days.count
+            prevDays = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: prevStart)! }
+        case .year:
+            let prevStart = calendar.date(byAdding: .year, value: -2, to: now)!
+            let daysCount = days.count
+            prevDays = (0..<daysCount).map { calendar.date(byAdding: .day, value: $0, to: prevStart)! }
+        }
+        let prevSets = prevDays.map { day in
+            filteredWorkouts.filter { calendar.isDate($0.date, inSameDayAs: day) }.count
+        }
+        let prevTotal = prevSets.reduce(0, +)
+        let diff = total - prevTotal
+        let progressText: String
+        if diff > 0 {
+            progressText = "↑ +\(diff) подходов vs прошлый \(label)"
+        } else if diff < 0 {
+            progressText = "↓ \(abs(diff)) подходов vs прошлый \(label)"
+        } else {
+            progressText = "= Без изменений vs прошлый \(label)"
+        }
+        // Подписи над столбцами: разница с предыдущим днём
+        var topLabels: [String] = []
+        for i in 0..<setsPerDay.count {
+            let prevVal = i > 0 ? setsPerDay[i-1] : 0
+            let diff = setsPerDay[i] - prevVal
+            topLabels.append(diff > 0 ? "+\(diff)" : (diff < 0 ? "\(diff)" : ""))
+        }
+        return (setsPerDay, progressText, topLabels, barColors, total, totalLabel)
+    }
+    // Для weight/reps графика: прирост веса и подходов
+    func weightAndSetsDiffLabels(for sessions: [Workout]) -> ([String], [String]) {
+        var weightLabels: [String] = []
+        var setsLabels: [String] = []
+        for i in 0..<sessions.count {
+            let prevW = i > 0 ? sessions[i-1].weight : 0
+            let diffW = sessions[i].weight - prevW
+            weightLabels.append(diffW > 0 ? "+\(diffW)" : (diffW < 0 ? "\(diffW)" : ""))
+            // Для подходов: считаем по дате
+            let prevDate = i > 0 ? sessions[i-1].date : nil
+            let prevSets = prevDate != nil ? workouts.filter { $0.name == sessions[i].name && Calendar.current.isDate($0.date, inSameDayAs: prevDate!) }.count : 0
+            let currSets = workouts.filter { $0.name == sessions[i].name && Calendar.current.isDate($0.date, inSameDayAs: sessions[i].date) }.count
+            let diffSets = currSets - prevSets
+            setsLabels.append(diffSets > 0 ? "+\(diffSets)" : (diffSets < 0 ? "\(diffSets)" : ""))
+        }
+        // Для weight графика используем weightLabels
+        return (weightLabels, setsLabels)
     }
 }
